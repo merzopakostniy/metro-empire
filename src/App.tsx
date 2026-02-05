@@ -12,9 +12,41 @@ const getWebApp = () => {
   return window.Telegram?.WebApp;
 };
 
+const getInitDataFromUrl = () => {
+  if (typeof window === 'undefined') return '';
+
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  if (hash) {
+    const params = new URLSearchParams(hash);
+    const data = params.get('tgWebAppData');
+    if (data) return data;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get('tgWebAppData') ?? '';
+};
+
+const parseInitDataUnsafe = (initData: string) => {
+  if (!initData) return undefined;
+  try {
+    const params = new URLSearchParams(initData);
+    const userRaw = params.get('user');
+    if (!userRaw) return undefined;
+    const user = JSON.parse(userRaw) as { id?: number; first_name?: string; last_name?: string };
+    return { user };
+  } catch {
+    return undefined;
+  }
+};
+
 function App() {
   const [webApp, setWebApp] = useState(getWebApp);
-  const user = webApp?.initDataUnsafe?.user;
+  const initDataFromUrl = getInitDataFromUrl();
+  const initData = webApp?.initData ?? initDataFromUrl;
+  const initDataUnsafe = webApp?.initDataUnsafe ?? parseInitDataUnsafe(initData);
+  const user = initDataUnsafe?.user;
   const [resources, setResources] = useState({
     energy: 5000,
     metal: 2000,
@@ -88,7 +120,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!API_BASE || !webApp?.initData) {
+    if (!API_BASE || !initData) {
       return;
     }
 
@@ -98,7 +130,7 @@ function App() {
       try {
         const response = await fetch(`${API_BASE}/state`, {
           headers: {
-            Authorization: `tma ${webApp.initData}`,
+            Authorization: `tma ${initData}`,
           },
         });
 
@@ -132,7 +164,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [API_BASE, webApp]);
+  }, [API_BASE, initData]);
 
   const nextStreak = useMemo(() => {
     if (dailyClaimed) return dailyStreak;
@@ -145,16 +177,16 @@ function App() {
 
   const formatNumber = (value: number) => value.toLocaleString('ru-RU');
 
-  const showBootWarning = !webApp && bootElapsed > 1500;
+  const showBootWarning = initData.length === 0 && bootElapsed > 1500;
   const showDebugOverlay = showBootWarning || runtimeErrors.length > 0 || !!serverError;
-  const initDataLength = webApp?.initData?.length ?? 0;
+  const initDataLength = initData.length;
   const userAgent =
     typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
 
   const handleDailyClaim = async (dayNumber: number) => {
     if (dailyClaimed) return;
     if (dayNumber !== displayStreak) return;
-    if (!API_BASE || !webApp?.initData) {
+    if (!API_BASE || !initData) {
       return;
     }
 
@@ -162,7 +194,7 @@ function App() {
       const response = await fetch(`${API_BASE}/daily/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `tma ${webApp.initData}`,
+          Authorization: `tma ${initData}`,
         },
       });
 
@@ -212,7 +244,7 @@ function App() {
               </div>
             )}
             <div className="debug-hint">
-              Проверь в BotFather: /setdomain → https://metro-empire.pages.dev
+              Проверь в BotFather: /setdomain → metro-empire.pages.dev
             </div>
           </div>
         </div>
