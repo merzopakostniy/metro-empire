@@ -9,7 +9,7 @@ const clampDay = (value: number) => Math.min(7, Math.max(1, value));
 const API_BASE = import.meta.env.VITE_API_BASE as string | undefined;
 
 function App() {
-  const user = WebApp.initDataUnsafe.user;
+  const user = WebApp.initDataUnsafe?.user;
   const [resources, setResources] = useState({
     energy: 5000,
     metal: 2000,
