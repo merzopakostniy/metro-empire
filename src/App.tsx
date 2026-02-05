@@ -28,6 +28,8 @@ function App() {
     dailyStreak: 0,
   });
   const [serverError, setServerError] = useState<string | null>(null);
+  const [bootElapsed, setBootElapsed] = useState(0);
+  const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (webApp) {
@@ -52,6 +54,38 @@ function App() {
       window.clearInterval(interval);
     };
   }, [webApp]);
+
+  useEffect(() => {
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      setBootElapsed(Date.now() - start);
+    }, 500);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      setRuntimeErrors((prev) => [
+        ...prev,
+        event.message || 'Неизвестная ошибка',
+      ]);
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason =
+        event.reason instanceof Error
+          ? event.reason.message
+          : String(event.reason ?? 'Ошибка промиса');
+      setRuntimeErrors((prev) => [...prev, reason]);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
   useEffect(() => {
     if (!API_BASE || !webApp?.initData) {
@@ -111,6 +145,12 @@ function App() {
 
   const formatNumber = (value: number) => value.toLocaleString('ru-RU');
 
+  const showBootWarning = !webApp && bootElapsed > 1500;
+  const showDebugOverlay = showBootWarning || runtimeErrors.length > 0 || !!serverError;
+  const initDataLength = webApp?.initData?.length ?? 0;
+  const userAgent =
+    typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+
   const handleDailyClaim = async (dayNumber: number) => {
     if (dailyClaimed) return;
     if (dayNumber !== displayStreak) return;
@@ -146,6 +186,37 @@ function App() {
 
   return (
     <div className="app">
+      {showDebugOverlay && (
+        <div className="debug-overlay">
+          <div className="debug-card">
+            <div className="debug-title">Диагностика загрузки</div>
+            <div className="debug-line">
+              WebApp: <strong>{webApp ? 'OK' : 'нет'}</strong>
+            </div>
+            <div className="debug-line">
+              initData: <strong>{initDataLength > 0 ? 'есть' : 'нет'}</strong>
+            </div>
+            <div className="debug-line">
+              API: <strong>{API_BASE || 'не задан'}</strong>
+            </div>
+            <div className="debug-line">
+              URL: <strong>{typeof window !== 'undefined' ? window.location.href : ''}</strong>
+            </div>
+            <div className="debug-line">UA: {userAgent}</div>
+            {serverError && (
+              <div className="debug-error">API: {serverError}</div>
+            )}
+            {runtimeErrors.length > 0 && (
+              <div className="debug-error">
+                Ошибки: {runtimeErrors.slice(-2).join(' | ')}
+              </div>
+            )}
+            <div className="debug-hint">
+              Проверь в BotFather: /setdomain → https://metro-empire.pages.dev
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top Resource Bar */}
       <div className="resource-bar">
         <div className="resource">

@@ -842,6 +842,63 @@ body {
   color: #fca5a5;
 }
 
+/* ==================== DEBUG OVERLAY ==================== */
+.debug-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 6, 12, 0.82);
+  z-index: 300;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.debug-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(20, 20, 34, 0.95);
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.debug-title {
+  font-family: 'Russo One', sans-serif;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.debug-line {
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.debug-line strong {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.debug-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  font-size: 11px;
+}
+
+.debug-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 @media (max-width: 520px) {
   .daily-card-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
