@@ -1,0 +1,15 @@
+{
+  "name": "metro-empire-api",
+  "main": "workers/src/index.ts",
+  "compatibility_date": "2026-02-05",
+  "vars": {
+    "ALLOWED_ORIGIN": "https://metro-empire.pages.dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "metro-empire",
+      "database_id": "REPLACE_WITH_DATABASE_ID"
+    }
+  ]
+}

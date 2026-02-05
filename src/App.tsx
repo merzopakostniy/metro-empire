@@ -4,30 +4,9 @@ import './App.css';
 
 const DAILY_CRYSTALS = [1, 2, 3, 4, 5, 6, 7] as const;
 
-const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
-
 const clampDay = (value: number) => Math.min(7, Math.max(1, value));
 
-const getInitialDailyState = () => {
-  if (typeof window === 'undefined') {
-    return { dailyClaimed: false, dailyStreak: 0 };
-  }
-
-  const today = getDateKey();
-  const yesterday = getDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
-  const lastClaim = localStorage.getItem('metro_daily_claim_date');
-  const storedStreak = Number(localStorage.getItem('metro_daily_streak') || 0);
-
-  if (lastClaim === today) {
-    return { dailyClaimed: true, dailyStreak: storedStreak || 1 };
-  }
-
-  if (lastClaim === yesterday) {
-    return { dailyClaimed: false, dailyStreak: storedStreak || 0 };
-  }
-
-  return { dailyClaimed: false, dailyStreak: 0 };
-};
+const API_BASE = import.meta.env.VITE_API_BASE as string | undefined;
 
 function App() {
   const user = WebApp.initDataUnsafe.user;
@@ -39,11 +18,62 @@ function App() {
     crystals: 100,
   });
   const [isDailyOpen, setIsDailyOpen] = useState(false);
-  const [{ dailyClaimed, dailyStreak }, setDailyState] = useState(getInitialDailyState);
+  const [{ dailyClaimed, dailyStreak }, setDailyState] = useState({
+    dailyClaimed: false,
+    dailyStreak: 0,
+  });
+  const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
     WebApp.ready();
     WebApp.expand();
+  }, [API_BASE]);
+
+  useEffect(() => {
+    if (!API_BASE || !WebApp.initData) {
+      return;
+    }
+
+    let active = true;
+
+    const loadState = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/state`, {
+          headers: {
+            Authorization: `tma ${WebApp.initData}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!active) return;
+
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setResources(data.resources);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setDailyState({
+          dailyClaimed: !data.daily.available,
+          dailyStreak: data.daily.streak,
+        });
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setServerError(null);
+      } catch (error) {
+        if (!active) return;
+        const message =
+          error instanceof Error ? error.message : 'Не удалось загрузить данные';
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setServerError(message);
+      }
+    };
+
+    void loadState();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const nextStreak = useMemo(() => {
@@ -57,24 +87,37 @@ function App() {
 
   const formatNumber = (value: number) => value.toLocaleString('ru-RU');
 
-  const handleDailyClaim = (dayNumber: number) => {
+  const handleDailyClaim = async (dayNumber: number) => {
     if (dailyClaimed) return;
     if (dayNumber !== displayStreak) return;
-    const today = getDateKey();
-    const yesterday = getDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
-    const lastClaim = localStorage.getItem('metro_daily_claim_date');
-    const storedStreak = Number(localStorage.getItem('metro_daily_streak') || 0);
-    const newStreak = lastClaim === yesterday ? Math.min(7, storedStreak + 1) : 1;
-    const rewardCrystals = DAILY_CRYSTALS[clampDay(newStreak) - 1] ?? 1;
+    if (!API_BASE || !WebApp.initData) {
+      return;
+    }
 
-    setDailyState({ dailyClaimed: true, dailyStreak: newStreak });
-    setResources((prev) => ({
-      ...prev,
-      crystals: prev.crystals + rewardCrystals,
-    }));
+    try {
+      const response = await fetch(`${API_BASE}/daily/claim`, {
+        method: 'POST',
+        headers: {
+          Authorization: `tma ${WebApp.initData}`,
+        },
+      });
 
-    localStorage.setItem('metro_daily_claim_date', today);
-    localStorage.setItem('metro_daily_streak', String(newStreak));
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setResources(data.resources);
+      setDailyState({
+        dailyClaimed: !data.daily.available,
+        dailyStreak: data.daily.streak,
+      });
+      setServerError(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Не удалось получить награду';
+      setServerError(message);
+    }
   };
 
   return (
@@ -430,6 +473,7 @@ function App() {
               Серия посещений: {displayStreak}/7. Нажми на карточку текущего дня,
               чтобы собрать. Пропуск дня сбрасывает серию.
             </div>
+            {serverError && <div className="daily-error">Ошибка: {serverError}</div>}
           </div>
         </div>
       )}
