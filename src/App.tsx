@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import WebApp from '@twa-dev/sdk';
 import './App.css';
 
 const DAILY_CRYSTALS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -8,8 +7,14 @@ const clampDay = (value: number) => Math.min(7, Math.max(1, value));
 
 const API_BASE = import.meta.env.VITE_API_BASE as string | undefined;
 
+const getWebApp = () => {
+  if (typeof window === 'undefined') return undefined;
+  return window.Telegram?.WebApp;
+};
+
 function App() {
-  const user = WebApp.initDataUnsafe?.user;
+  const [webApp, setWebApp] = useState(getWebApp);
+  const user = webApp?.initDataUnsafe?.user;
   const [resources, setResources] = useState({
     energy: 5000,
     metal: 2000,
@@ -25,12 +30,31 @@ function App() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
-    WebApp.ready();
-    WebApp.expand();
-  }, [API_BASE]);
+    if (webApp) {
+      webApp.ready();
+      webApp.expand();
+      return;
+    }
+
+    let active = true;
+    const interval = window.setInterval(() => {
+      const next = getWebApp();
+      if (next && active) {
+        next.ready();
+        next.expand();
+        setWebApp(next);
+        window.clearInterval(interval);
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [webApp]);
 
   useEffect(() => {
-    if (!API_BASE || !WebApp.initData) {
+    if (!API_BASE || !webApp?.initData) {
       return;
     }
 
@@ -40,7 +64,7 @@ function App() {
       try {
         const response = await fetch(`${API_BASE}/state`, {
           headers: {
-            Authorization: `tma ${WebApp.initData}`,
+            Authorization: `tma ${webApp.initData}`,
           },
         });
 
@@ -74,7 +98,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [API_BASE, webApp]);
 
   const nextStreak = useMemo(() => {
     if (dailyClaimed) return dailyStreak;
@@ -90,7 +114,7 @@ function App() {
   const handleDailyClaim = async (dayNumber: number) => {
     if (dailyClaimed) return;
     if (dayNumber !== displayStreak) return;
-    if (!API_BASE || !WebApp.initData) {
+    if (!API_BASE || !webApp?.initData) {
       return;
     }
 
@@ -98,7 +122,7 @@ function App() {
       const response = await fetch(`${API_BASE}/daily/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `tma ${WebApp.initData}`,
+          Authorization: `tma ${webApp.initData}`,
         },
       });
 
