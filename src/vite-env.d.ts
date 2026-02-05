@@ -19,4 +19,5 @@ interface Window {
   Telegram?: {
     WebApp?: TelegramWebApp;
   };
+  __bootOk?: boolean;
 }

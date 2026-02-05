@@ -6,15 +6,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>metro-empire</title>
   </head>
-  <body>
+  <body style="margin:0;background:#0b0b12;color:#e2e8f0;">
     <div id="root">
       <div style="padding:16px;font-family:Arial,sans-serif;color:#e2e8f0;">
-        Loading...
+        Загрузка…
         <div style="margin-top:8px;font-size:12px;color:#94a3b8;">
-          If this stays blank, update the app or clear Telegram cache.
+          Если экран остаётся пустым, обновите мини‑апп или очистите кеш Telegram.
         </div>
       </div>
     </div>
+    <script>
+      (function () {
+        var root = document.getElementById('root');
+        window.__bootOk = false;
+        window.addEventListener('error', function (event) {
+          root.innerHTML =
+            '<div style="padding:16px;font-family:Arial,sans-serif;color:#fca5a5;">Ошибка загрузки: ' +
+            (event.message || 'unknown') +
+            '</div>';
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          root.innerHTML =
+            '<div style="padding:16px;font-family:Arial,sans-serif;color:#fca5a5;">Ошибка: ' +
+            (event.reason && event.reason.message ? event.reason.message : String(event.reason || 'unknown')) +
+            '</div>';
+        });
+        setTimeout(function () {
+          if (!window.__bootOk) {
+            root.innerHTML =
+              '<div style="padding:16px;font-family:Arial,sans-serif;color:#fbbf24;">JS не запустился. ' +
+              'Проверьте кеш Telegram и домен в BotFather.</div>';
+          }
+        }, 2000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
