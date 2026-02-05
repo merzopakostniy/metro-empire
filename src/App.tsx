@@ -8,6 +8,27 @@ const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
 const clampDay = (value: number) => Math.min(7, Math.max(1, value));
 
+const getInitialDailyState = () => {
+  if (typeof window === 'undefined') {
+    return { dailyClaimed: false, dailyStreak: 0 };
+  }
+
+  const today = getDateKey();
+  const yesterday = getDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const lastClaim = localStorage.getItem('metro_daily_claim_date');
+  const storedStreak = Number(localStorage.getItem('metro_daily_streak') || 0);
+
+  if (lastClaim === today) {
+    return { dailyClaimed: true, dailyStreak: storedStreak || 1 };
+  }
+
+  if (lastClaim === yesterday) {
+    return { dailyClaimed: false, dailyStreak: storedStreak || 0 };
+  }
+
+  return { dailyClaimed: false, dailyStreak: 0 };
+};
+
 function App() {
   const user = WebApp.initDataUnsafe.user;
   const [resources, setResources] = useState({
@@ -18,31 +39,11 @@ function App() {
     crystals: 100,
   });
   const [isDailyOpen, setIsDailyOpen] = useState(false);
-  const [dailyClaimed, setDailyClaimed] = useState(false);
-  const [dailyStreak, setDailyStreak] = useState(0);
+  const [{ dailyClaimed, dailyStreak }, setDailyState] = useState(getInitialDailyState);
 
   useEffect(() => {
     WebApp.ready();
     WebApp.expand();
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const today = getDateKey();
-    const yesterday = getDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
-    const lastClaim = localStorage.getItem('metro_daily_claim_date');
-    const storedStreak = Number(localStorage.getItem('metro_daily_streak') || 0);
-
-    if (lastClaim === today) {
-      setDailyClaimed(true);
-      setDailyStreak(storedStreak || 1);
-    } else if (lastClaim === yesterday) {
-      setDailyClaimed(false);
-      setDailyStreak(storedStreak || 0);
-    } else {
-      setDailyClaimed(false);
-      setDailyStreak(0);
-    }
   }, []);
 
   const nextStreak = useMemo(() => {
@@ -66,8 +67,7 @@ function App() {
     const newStreak = lastClaim === yesterday ? Math.min(7, storedStreak + 1) : 1;
     const rewardCrystals = DAILY_CRYSTALS[clampDay(newStreak) - 1] ?? 1;
 
-    setDailyClaimed(true);
-    setDailyStreak(newStreak);
+    setDailyState({ dailyClaimed: true, dailyStreak: newStreak });
     setResources((prev) => ({
       ...prev,
       crystals: prev.crystals + rewardCrystals,
